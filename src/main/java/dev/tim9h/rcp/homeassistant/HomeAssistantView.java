@@ -8,6 +8,7 @@ import org.apache.logging.log4j.Logger;
 import com.google.inject.Inject;
 
 import dev.tim9h.rcp.event.EventManager;
+import dev.tim9h.rcp.homeassistant.service.HomeAssistantService;
 import dev.tim9h.rcp.logging.InjectLogger;
 import dev.tim9h.rcp.settings.Settings;
 import dev.tim9h.rcp.spi.CommandBuilder;
@@ -16,9 +17,9 @@ import dev.tim9h.rcp.spi.Plugin;
 
 public class HomeAssistantView implements Plugin {
 
-	static final String SETTING_URL = "homeassistant.url";
+	public static final String SETTING_URL = "homeassistant.url";
 
-	static final String SETTING_APIKEY = "homeassistant.apikey";
+	public static final String SETTING_APIKEY = "homeassistant.apikey";
 
 	@InjectLogger
 	private Logger logger;
@@ -28,6 +29,19 @@ public class HomeAssistantView implements Plugin {
 
 	@Inject
 	private Settings settings;
+
+	@Inject
+	private HomeAssistantService service;
+
+	@Override
+	public void init() {
+		service.connect();
+	}
+
+	@Override
+	public void onShutdown() {
+		service.shutdown();
+	}
 
 	@Override
 	public String getName() {
@@ -52,6 +66,8 @@ public class HomeAssistantView implements Plugin {
 		}).argumentAction(apikey -> {
 			settings.persist(SETTING_APIKEY, apikey);
 			eventManager.echo("Updated Home Assistant Api Key", apikey);
+		}).up().child("test", _ -> { // TODO: remove later
+			service.toggleLight();
 		}).build();
 	}
 
