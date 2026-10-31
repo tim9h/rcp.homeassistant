@@ -1,10 +1,16 @@
 package dev.tim9h.rcp.homeassistant.service;
 
+import java.util.function.Consumer;
+
 import org.apache.logging.log4j.Logger;
 
 import com.github.thibstars.jhaapi.Configuration;
+import com.github.thibstars.jhaapi.client.calendars.CalendarServiceImpl;
+import com.github.thibstars.jhaapi.client.events.EntityEventServiceImpl;
 import com.github.thibstars.jhaapi.client.services.LightServiceImpl;
+import com.github.thibstars.jhaapi.client.states.StatesServiceImpl;
 import com.github.thibstars.jhaapi.client.status.StatusServiceImpl;
+import com.github.thibstars.jhaapi.client.websocket.WebSocketServiceImpl;
 import com.github.thibstars.jhaapi.internal.exceptions.ClientException;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
@@ -17,8 +23,6 @@ import dev.tim9h.rcp.settings.Settings;
 @Singleton
 public class HomeAssistantService {
 
-	private static String DESK = "kajplats_e14_ws_globe_806lm"; // TODO: make this configurable
-
 	@InjectLogger
 	private Logger logger;
 
@@ -29,6 +33,14 @@ public class HomeAssistantService {
 	private EventManager eventManager;
 
 	private LightServiceImpl lightService;
+
+	private static StatesServiceImpl statesService;
+
+	private static CalendarServiceImpl calendarService;
+
+	private static WebSocketServiceImpl websocketService;
+
+	private static EntityEventServiceImpl entityEventService;
 
 	public void connect() {
 		var baseUrl = settings.getString(HomeAssistantView.SETTING_URL);
@@ -53,15 +65,36 @@ public class HomeAssistantService {
 		}
 
 		lightService = new LightServiceImpl(config);
+		statesService = new StatesServiceImpl(config);
+		calendarService = new CalendarServiceImpl(config);
+		websocketService = new WebSocketServiceImpl(config);
+		entityEventService = new EntityEventServiceImpl(websocketService);
+
+		entityEventService.start();
 	}
 
 	public void shutdown() {
-		// No explicit shutdown needed for the services, but you can add cleanup logic
-		// here if necessary
+		logger.info(() -> "Shutting down HomeAssistantService");
+		entityEventService.stop();
+		websocketService.close();
 	}
 
-	public void toggleLight() {
-		lightService.toggle(DESK);
+	public void toggleLight(String entityId) {
+		lightService.toggle(entityId);
+	}
+
+	public boolean isLightOn(String entityId) {
+		var state = statesService.getState("light." + entityId);
+		if (state.isPresent()) {
+			return "on".equals(state.get().state());
+		} else {
+			throw new RuntimeException("Failed to get state for entity: " + entityId);
+		}
+	}
+
+	public void listenToLight(String entityId, Consumer<Boolean> onStateChange) {
+		entityEventService.onTurnedOff("light." + entityId, _ -> onStateChange.accept(false));
+		entityEventService.onTurnedOn("light." + entityId, _ -> onStateChange.accept(true));
 	}
 
 }

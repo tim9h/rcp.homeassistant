@@ -9,5 +9,6 @@ module rcp.homeassistant {
 	requires org.apache.logging.log4j;
 	requires ch.qos.logback.classic;
 	requires JHAAPI;
+	requires okhttp3;
 
 }

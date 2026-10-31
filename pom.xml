@@ -67,7 +67,7 @@
 		<dependency>
 			<groupId>com.github.thibstars</groupId>
 			<artifactId>JHAAPI</artifactId>
-			<version>1.0.17-SNAPSHOT</version>
+			<version>1.0.17</version>
 		</dependency>
 
 	</dependencies>
@@ -105,12 +105,18 @@
 							<artifactSet>
 								<includes>
 									<include>com.github.thibstars:JHAAPI</include>
-									<include>com.fasterxml.jackson.datatype:jackson-datatype-jsr310</include>
-									<include>org.apache.httpcomponents.core5:httpcore5</include>
+									<include>
+										com.fasterxml.jackson.datatype:jackson-datatype-jsr310</include>
+									<include>
+										org.apache.httpcomponents.core5:httpcore5</include>
+									<include>com.squareup.okhttp3:okhttp</include>
 									<include>com.squareup.okhttp3:okhttp-jvm</include>
-									<include>com.fasterxml.jackson.core:jackson-core</include>
-									<include>com.fasterxml.jackson.core:jackson-databind</include>
-									<include>com.fasterxml.jackson.core:jackson-annotations</include>
+									<include>
+										com.fasterxml.jackson.core:jackson-core</include>
+									<include>
+										com.fasterxml.jackson.core:jackson-databind</include>
+									<include>
+										com.fasterxml.jackson.core:jackson-annotations</include>
 									<include>org.jetbrains.kotlin:kotlin-stdlib</include>
 									<include>com.squareup.okio:okio-jvm</include>
 								</includes>
