@@ -1,11 +1,17 @@
 package dev.tim9h.rcp.homeassistant.service;
 
+import java.time.LocalDate;
+import java.time.LocalTime;
+import java.time.OffsetDateTime;
+import java.time.ZoneId;
+import java.util.Comparator;
 import java.util.function.Consumer;
 
 import org.apache.logging.log4j.Logger;
 
 import com.github.thibstars.jhaapi.Configuration;
 import com.github.thibstars.jhaapi.client.calendars.CalendarServiceImpl;
+import com.github.thibstars.jhaapi.client.calendars.response.CalendarEvent;
 import com.github.thibstars.jhaapi.client.events.EntityEventServiceImpl;
 import com.github.thibstars.jhaapi.client.services.LightServiceImpl;
 import com.github.thibstars.jhaapi.client.states.StatesServiceImpl;
@@ -34,13 +40,13 @@ public class HomeAssistantService {
 
 	private LightServiceImpl lightService;
 
-	private static StatesServiceImpl statesService;
+	private StatesServiceImpl statesService;
 
-	private static CalendarServiceImpl calendarService;
+	private CalendarServiceImpl calendarService;
 
-	private static WebSocketServiceImpl websocketService;
+	private WebSocketServiceImpl websocketService;
 
-	private static EntityEventServiceImpl entityEventService;
+	private EntityEventServiceImpl entityEventService;
 
 	public void connect() {
 		var baseUrl = settings.getString(HomeAssistantView.SETTING_URL);
@@ -88,13 +94,32 @@ public class HomeAssistantService {
 		if (state.isPresent()) {
 			return "on".equals(state.get().state());
 		} else {
-			throw new RuntimeException("Failed to get state for entity: " + entityId);
+			logger.error(() -> "Failed to get state for entity: " + entityId);
+			eventManager.echo("Failed to get state for entity ", entityId);
+			return false;
 		}
 	}
 
 	public void listenToLight(String entityId, Consumer<Boolean> onStateChange) {
 		entityEventService.onTurnedOff("light." + entityId, _ -> onStateChange.accept(false));
 		entityEventService.onTurnedOn("light." + entityId, _ -> onStateChange.accept(true));
+	}
+
+	public Object[] getNextCalendarEvent() {
+		var zone = ZoneId.systemDefault();
+		var start = OffsetDateTime.now(zone);
+		var end = LocalDate.now(zone).plusDays(1).atStartOfDay(zone).toOffsetDateTime();
+
+		return calendarService.getCalendars().stream()
+				.flatMap(calendar -> calendarService.getCalendarEvents(calendar.entityId(), start, end).stream())
+				.filter(event -> !event.start().isBefore(start)).min(Comparator.comparing(CalendarEvent::start))
+				.map(event -> new Object[] { event.summary(), event.start(), isAllDay(event.start(), event.end()) })
+				.orElse(null);
+	}
+
+	private boolean isAllDay(OffsetDateTime start, OffsetDateTime end) {
+		return start.toLocalTime().equals(LocalTime.MIDNIGHT) && end.toLocalTime().equals(LocalTime.MIDNIGHT)
+				&& end.toLocalDate().isAfter(start.toLocalDate());
 	}
 
 }

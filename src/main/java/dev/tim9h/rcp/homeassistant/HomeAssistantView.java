@@ -5,6 +5,9 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.logging.log4j.Logger;
 
@@ -20,6 +23,7 @@ import dev.tim9h.rcp.spi.CommandNode;
 import dev.tim9h.rcp.spi.Gravity;
 import dev.tim9h.rcp.spi.Plugin;
 import dev.tim9h.rcp.spi.Position;
+import javafx.application.Platform;
 import javafx.scene.Node;
 import javafx.scene.control.OverrunStyle;
 import javafx.scene.control.ToggleButton;
@@ -46,13 +50,25 @@ public class HomeAssistantView implements Plugin {
 	@Inject
 	private HomeAssistantService service;
 
+	private ScheduledExecutorService calendarEventScheduler;
+
 	@Override
 	public void init() {
 		service.connect();
+		calendarEventScheduler = Executors.newSingleThreadScheduledExecutor(runnable -> {
+			var thread = new Thread(runnable, "homeassistant-calendar-publisher");
+			thread.setDaemon(true);
+			return thread;
+		});
+		calendarEventScheduler.scheduleAtFixedRate(this::publishCalendarEventsSafely, 15, 15, TimeUnit.MINUTES);
+		publishCalendarEventsSafely();
 	}
 
 	@Override
 	public void onShutdown() {
+		if (calendarEventScheduler != null) {
+			calendarEventScheduler.shutdownNow();
+		}
 		service.shutdown();
 	}
 
@@ -103,7 +119,8 @@ public class HomeAssistantView implements Plugin {
 		var pane = new FlowPane();
 		pane.getStyleClass().addAll("ccCard", "centeredFlowPane");
 		lights.stream().map(light -> createLightButton(light.getKey(), light.getValue()))
-				.forEach(button -> pane.getChildren().add(button));
+				.forEach(pane.getChildren()::add);
+
 		return Optional.of(pane);
 	}
 
@@ -146,6 +163,19 @@ public class HomeAssistantView implements Plugin {
 				return new Pair<String, String>(parts[0], parts[0]);
 			}
 		}).toList();
+	}
+
+	private void publishCalendarEvents() {
+		var event = service.getNextCalendarEvent();
+		Platform.runLater(() -> eventManager.post(new Event(Event.EVENT_CALENDAR_NEXT_EVENT, event)));
+	}
+
+	private void publishCalendarEventsSafely() {
+		try {
+			publishCalendarEvents();
+		} catch (Exception e) {
+			logger.error(() -> "Failed to publish Home Assistant calendar event", e);
+		}
 	}
 
 }
