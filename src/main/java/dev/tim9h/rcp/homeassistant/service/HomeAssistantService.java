@@ -16,13 +16,18 @@ import java.util.function.Consumer;
 import org.apache.logging.log4j.Logger;
 
 import com.github.thibstars.jhaapi.Configuration;
+import com.github.thibstars.jhaapi.client.calendars.CalendarService;
 import com.github.thibstars.jhaapi.client.calendars.CalendarServiceImpl;
 import com.github.thibstars.jhaapi.client.calendars.response.Calendar;
 import com.github.thibstars.jhaapi.client.calendars.response.CalendarEvent;
+import com.github.thibstars.jhaapi.client.events.EntityEventService;
 import com.github.thibstars.jhaapi.client.events.EntityEventServiceImpl;
+import com.github.thibstars.jhaapi.client.services.LightService;
 import com.github.thibstars.jhaapi.client.services.LightServiceImpl;
+import com.github.thibstars.jhaapi.client.states.StatesService;
 import com.github.thibstars.jhaapi.client.states.StatesServiceImpl;
 import com.github.thibstars.jhaapi.client.status.StatusServiceImpl;
+import com.github.thibstars.jhaapi.client.websocket.WebSocketService;
 import com.github.thibstars.jhaapi.client.websocket.WebSocketServiceImpl;
 import com.github.thibstars.jhaapi.internal.exceptions.ClientException;
 import com.google.inject.Inject;
@@ -47,15 +52,15 @@ public class HomeAssistantService {
 	@Inject
 	private EventManager eventManager;
 
-	private LightServiceImpl lightService;
+	private LightService lightService;
 
-	private StatesServiceImpl statesService;
+	private StatesService statesService;
 
-	private CalendarServiceImpl calendarService;
+	private CalendarService calendarService;
 
-	private WebSocketServiceImpl websocketService;
+	private WebSocketService websocketService;
 
-	private EntityEventServiceImpl entityEventService;
+	private EntityEventService entityEventService;
 
 	private volatile boolean connected;
 
