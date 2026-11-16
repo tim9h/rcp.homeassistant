@@ -41,6 +41,8 @@ public class HomeAssistantView implements Plugin {
 
 	public static final String SETTING_ENTITIES_LIGHTS = "homeassistant.entities.lights";
 
+	public static final String SETTING_ENTITIES_TODO = "homeassistant.entities.todo";
+
 	@InjectLogger
 	private Logger logger;
 
@@ -231,12 +233,13 @@ public class HomeAssistantView implements Plugin {
 
 	@Override
 	public Map<String, String> getSettingsContributions() {
-		return Map.of(SETTING_URL, "http://localhost:8123", SETTING_APIKEY, "");
+		return Map.of(SETTING_URL, "http://localhost:8123", SETTING_APIKEY, "", SETTING_ENTITIES_TODO,
+				"todo.shopping_list");
 	}
 
 	@Override
 	public Optional<CommandNode> getCommands() {
-		return new CommandBuilder().command("homeassistant").child("url", _ -> {
+		return new CommandBuilder().command("hass").child("url", _ -> {
 			eventManager.echo("Home Assistant URL", settings.getString(SETTING_URL));
 		}).argumentAction(url -> {
 			var apiUrl = ensureApiSuffix(url);
@@ -247,6 +250,25 @@ public class HomeAssistantView implements Plugin {
 		}).argumentAction(apikey -> {
 			settings.persist(SETTING_APIKEY, apikey);
 			eventManager.echo("Updated Home Assistant Api Key", apikey);
+		}).up().child("todo", _ -> {
+			var todos = service.getTodoItems();
+			eventManager.echo("Current To-do list", todos.toString());
+		}).child("entity", _ -> {
+			var todo = settings.getString(SETTING_ENTITIES_TODO);
+			eventManager.echo("Current To-do list", todo);
+		}).argumentAction(entity -> {
+			settings.persist(SETTING_ENTITIES_TODO, entity);
+			eventManager.echo("Using To-do list", entity);
+		}).up().child("add", _ -> {
+			eventManager.echo("Which item?");
+		}).argumentAction(item -> {
+			service.addTodoItem(item);
+			eventManager.echo("Adding item", item);
+		}).up().child("remove", _ -> {
+			service.removeTodoItem();
+			eventManager.echo("Which item?");
+		}).argumentAction(item -> {
+			eventManager.echo("Removed item", item);
 		}).build();
 	}
 
