@@ -195,7 +195,9 @@ public class HomeAssistantService {
 		var end = LocalDate.now(zone).plusDays(1).atStartOfDay(zone).toOffsetDateTime();
 
 		return getCalendarIds().stream().flatMap(id -> calendarService.getCalendarEvents(id, start, end).stream())
-				.filter(event -> !event.start().isBefore(start)).min(Comparator.comparing(CalendarEvent::start))
+				.filter(event -> event.end().isAfter(start))
+				.min(Comparator.comparing((CalendarEvent event) -> event.start().isBefore(start))
+						.thenComparing(CalendarEvent::start))
 				.map(event -> new Object[] { event.summary(), event.start(), isAllDay(event.start(), event.end()) });
 	}
 
