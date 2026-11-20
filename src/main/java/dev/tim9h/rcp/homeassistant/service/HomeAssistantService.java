@@ -5,7 +5,6 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
@@ -27,6 +26,9 @@ import com.github.thibstars.jhaapi.client.services.LightServiceImpl;
 import com.github.thibstars.jhaapi.client.states.StatesService;
 import com.github.thibstars.jhaapi.client.states.StatesServiceImpl;
 import com.github.thibstars.jhaapi.client.status.StatusServiceImpl;
+import com.github.thibstars.jhaapi.client.todo.TodoService;
+import com.github.thibstars.jhaapi.client.todo.TodoServiceImpl;
+import com.github.thibstars.jhaapi.client.todo.response.TodoItem;
 import com.github.thibstars.jhaapi.client.websocket.WebSocketService;
 import com.github.thibstars.jhaapi.client.websocket.WebSocketServiceImpl;
 import com.github.thibstars.jhaapi.internal.exceptions.ClientException;
@@ -61,6 +63,8 @@ public class HomeAssistantService {
 	private WebSocketService websocketService;
 
 	private EntityEventService entityEventService;
+
+	private TodoService todoService;
 
 	private volatile boolean connected;
 
@@ -104,6 +108,7 @@ public class HomeAssistantService {
 			websocketService = new WebSocketServiceImpl(config);
 			entityEventService = new EntityEventServiceImpl(websocketService);
 			entityEventService.start();
+			todoService = new TodoServiceImpl(config);
 		} catch (Exception e) {
 			logger.error(() -> "Failed to start Home Assistant event service", e);
 			closeQuietly();
@@ -221,17 +226,21 @@ public class HomeAssistantService {
 				&& end.toLocalDate().isAfter(start.toLocalDate());
 	}
 
-	public void addTodoItem(String item) {
-		// TODO Auto-generated method stub
+	public boolean addTodoItem(String todoEntityId, String item) {
+		return todoService.addTodoItem(todoEntityId, item);
 	}
 
-	public void removeTodoItem() {
-		// TODO Auto-generated method stub
+	public boolean removeTodoItem(String todoEntityId, String item) {
+		return todoService.removeTodoItem(todoEntityId, item);
 	}
 
-	public List<String> getTodoItems() {
-		// TODO Auto-generated method stub
-		return Collections.emptyList();
+	public List<String> getTodoItems(String todoEntityId) {
+		var todos = todoService.getUncompletedTodoItems(todoEntityId);
+		return todos.stream().map(TodoItem::summary).toList();
+	}
+
+	public boolean completeTodoItem(String todoEntityId, String item) {
+		return todoService.setTodoItemCompleted(todoEntityId, item, true);
 	}
 
 }
