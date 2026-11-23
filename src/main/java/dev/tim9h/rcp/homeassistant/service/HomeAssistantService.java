@@ -15,13 +15,21 @@ import java.util.function.Consumer;
 import org.apache.logging.log4j.Logger;
 
 import com.github.thibstars.jhaapi.Configuration;
+import com.github.thibstars.jhaapi.client.calendars.CalendarService;
 import com.github.thibstars.jhaapi.client.calendars.CalendarServiceImpl;
 import com.github.thibstars.jhaapi.client.calendars.response.Calendar;
 import com.github.thibstars.jhaapi.client.calendars.response.CalendarEvent;
+import com.github.thibstars.jhaapi.client.events.EntityEventService;
 import com.github.thibstars.jhaapi.client.events.EntityEventServiceImpl;
+import com.github.thibstars.jhaapi.client.services.LightService;
 import com.github.thibstars.jhaapi.client.services.LightServiceImpl;
+import com.github.thibstars.jhaapi.client.states.StatesService;
 import com.github.thibstars.jhaapi.client.states.StatesServiceImpl;
 import com.github.thibstars.jhaapi.client.status.StatusServiceImpl;
+import com.github.thibstars.jhaapi.client.todo.TodoService;
+import com.github.thibstars.jhaapi.client.todo.TodoServiceImpl;
+import com.github.thibstars.jhaapi.client.todo.response.TodoItem;
+import com.github.thibstars.jhaapi.client.websocket.WebSocketService;
 import com.github.thibstars.jhaapi.client.websocket.WebSocketServiceImpl;
 import com.github.thibstars.jhaapi.internal.exceptions.ClientException;
 import com.google.inject.Inject;
@@ -46,15 +54,17 @@ public class HomeAssistantService {
 	@Inject
 	private EventManager eventManager;
 
-	private LightServiceImpl lightService;
+	private LightService lightService;
 
-	private StatesServiceImpl statesService;
+	private StatesService statesService;
 
-	private CalendarServiceImpl calendarService;
+	private CalendarService calendarService;
 
-	private WebSocketServiceImpl websocketService;
+	private WebSocketService websocketService;
 
-	private EntityEventServiceImpl entityEventService;
+	private EntityEventService entityEventService;
+
+	private TodoService todoService;
 
 	private volatile boolean connected;
 
@@ -98,6 +108,7 @@ public class HomeAssistantService {
 			websocketService = new WebSocketServiceImpl(config);
 			entityEventService = new EntityEventServiceImpl(websocketService);
 			entityEventService.start();
+			todoService = new TodoServiceImpl(config);
 		} catch (Exception e) {
 			logger.error(() -> "Failed to start Home Assistant event service", e);
 			closeQuietly();
@@ -213,6 +224,23 @@ public class HomeAssistantService {
 	private boolean isAllDay(OffsetDateTime start, OffsetDateTime end) {
 		return start.toLocalTime().equals(LocalTime.MIDNIGHT) && end.toLocalTime().equals(LocalTime.MIDNIGHT)
 				&& end.toLocalDate().isAfter(start.toLocalDate());
+	}
+
+	public boolean addTodoItem(String todoEntityId, String item) {
+		return todoService.addTodoItem(todoEntityId, item);
+	}
+
+	public boolean removeTodoItem(String todoEntityId, String item) {
+		return todoService.removeTodoItem(todoEntityId, item);
+	}
+
+	public List<String> getTodoItems(String todoEntityId) {
+		var todos = todoService.getUncompletedTodoItems(todoEntityId);
+		return todos.stream().map(TodoItem::summary).toList();
+	}
+
+	public boolean completeTodoItem(String todoEntityId, String item) {
+		return todoService.setTodoItemCompleted(todoEntityId, item, true);
 	}
 
 }

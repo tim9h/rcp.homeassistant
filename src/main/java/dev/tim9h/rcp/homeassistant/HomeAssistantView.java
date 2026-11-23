@@ -19,6 +19,7 @@ import dev.tim9h.rcp.event.Event;
 import dev.tim9h.rcp.event.EventManager;
 import dev.tim9h.rcp.homeassistant.service.HomeAssistantService;
 import dev.tim9h.rcp.logging.InjectLogger;
+import dev.tim9h.rcp.settings.Setting;
 import dev.tim9h.rcp.settings.Settings;
 import dev.tim9h.rcp.spi.CommandBuilder;
 import dev.tim9h.rcp.spi.CommandNode;
@@ -40,6 +41,8 @@ public class HomeAssistantView implements Plugin {
 	public static final String SETTING_APIKEY = "homeassistant.apikey";
 
 	public static final String SETTING_ENTITIES_LIGHTS = "homeassistant.entities.lights";
+
+	public static final String SETTING_ENTITIES_TODO = "homeassistant.entities.todo";
 
 	@InjectLogger
 	private Logger logger;
@@ -166,8 +169,10 @@ public class HomeAssistantView implements Plugin {
 			executor.execute(() -> {
 				try {
 					service.toggleLight(entityId);
+					eventManager.echo(label + " turned " + (button.isSelected() ? "on" : "off"));
 				} catch (Exception e) {
 					logger.error(() -> "Failed to toggle light " + entityId, e);
+					eventManager.echo("Failed to toggle " + entityId, e.getMessage());
 				}
 			});
 			eventManager.post(new Event(Event.EVENT_CLI_REQUEST_FOCUS));
@@ -231,23 +236,47 @@ public class HomeAssistantView implements Plugin {
 
 	@Override
 	public Map<String, String> getSettingsContributions() {
-		return Map.of(SETTING_URL, "http://localhost:8123", SETTING_APIKEY, "");
+		return Map.of(SETTING_URL, "http://localhost:8123", SETTING_APIKEY, "", SETTING_ENTITIES_TODO,
+				"todo.shopping_list");
 	}
 
 	@Override
 	public Optional<CommandNode> getCommands() {
-		return new CommandBuilder().command("homeassistant").child("url", _ -> {
-			eventManager.echo("Home Assistant URL", settings.getString(SETTING_URL));
-		}).argumentAction(url -> {
-			var apiUrl = ensureApiSuffix(url);
-			settings.persist(SETTING_URL, apiUrl);
-			eventManager.echo("Updated Home Assistant URL", apiUrl);
-		}).up().child("apikey", _ -> {
-			eventManager.echo("Home Assistant ApiKey", settings.getString(SETTING_APIKEY));
-		}).argumentAction(apikey -> {
-			settings.persist(SETTING_APIKEY, apikey);
-			eventManager.echo("Updated Home Assistant Api Key", apikey);
-		}).build();
+		var todoEntityId = new Setting<>(settings, eventManager, SETTING_ENTITIES_TODO, "");
+
+		return new CommandBuilder().command("hass")
+				.child("url", _ -> eventManager.echo("Home Assistant URL", settings.getString(SETTING_URL)))
+				.argumentAction(url -> {
+					var apiUrl = ensureApiSuffix(url);
+					settings.persist(SETTING_URL, apiUrl);
+					eventManager.echo("Updated Home Assistant URL", apiUrl);
+				}).up()
+				.child("apikey", _ -> eventManager.echo("Home Assistant ApiKey", settings.getString(SETTING_APIKEY)))
+				.argumentAction(apikey -> {
+					settings.persist(SETTING_APIKEY, apikey);
+					eventManager.echo("Updated Home Assistant Api Key", apikey);
+				}).up().child("todo", _ -> {
+					var todos = service.getTodoItems(todoEntityId.get());
+					eventManager.echo("Current To-do list", String.join(", ", todos));
+				}).argumentAction(item -> {
+					var success = service.completeTodoItem(todoEntityId.get(), item);
+					eventManager.echo(success ? "Completed" : "Unable to complete", item);
+				}).child("entity", _ -> {
+					var todo = settings.getString(SETTING_ENTITIES_TODO);
+					eventManager.echo("Current To-do list", todo);
+				}).argumentAction(entity -> {
+					settings.persist(SETTING_ENTITIES_TODO, entity);
+					eventManager.echo("Using To-do list", entity);
+				}).up().child("add", _ -> eventManager.echo("Which item?")).argumentAction(item -> {
+					var success = service.addTodoItem(todoEntityId.get(), item);
+					eventManager.echo(success ? "Adding" : "Unable to add", item);
+				}).up().child("remove", _ -> eventManager.echo("Which item?")).argumentAction(item -> {
+					var success = service.removeTodoItem(todoEntityId.get(), item);
+					eventManager.echo(success ? "Removed" : "Unable to remove", item);
+				}).up()
+				// Add a shortcut command "sl" to add a shopping list item
+				.up().command("sl", _ -> eventManager.post("hass", "todo"))
+				.argumentAction(item -> eventManager.post(new Event("hass", "todo", "add", item))).build();
 	}
 
 	private static String ensureApiSuffix(String url) {
