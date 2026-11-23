@@ -169,8 +169,10 @@ public class HomeAssistantView implements Plugin {
 			executor.execute(() -> {
 				try {
 					service.toggleLight(entityId);
+					eventManager.echo(label + " turned " + (button.isSelected() ? "on" : "off"));
 				} catch (Exception e) {
 					logger.error(() -> "Failed to toggle light " + entityId, e);
+					eventManager.echo("Failed to toggle " + entityId, e.getMessage());
 				}
 			});
 			eventManager.post(new Event(Event.EVENT_CLI_REQUEST_FOCUS));
