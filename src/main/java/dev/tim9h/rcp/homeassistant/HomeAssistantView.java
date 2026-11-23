@@ -69,12 +69,8 @@ public class HomeAssistantView implements Plugin {
 	private final ChangeListener<Boolean> focusListener = (_, _, _) -> eventManager
 			.post(new Event(Event.EVENT_CLI_REQUEST_FOCUS));
 
-	private Setting<String> todoEntityId;
-
 	@Override
 	public void init() {
-		todoEntityId = new Setting<>(settings, eventManager, SETTING_ENTITIES_TODO, "");
-
 		executor = Executors.newScheduledThreadPool(2, runnable -> {
 			var thread = new Thread(runnable, "homeassistant-worker");
 			thread.setDaemon(true);
@@ -244,6 +240,8 @@ public class HomeAssistantView implements Plugin {
 
 	@Override
 	public Optional<CommandNode> getCommands() {
+		var todoEntityId = new Setting<>(settings, eventManager, SETTING_ENTITIES_TODO, "");
+
 		return new CommandBuilder().command("hass")
 				.child("url", _ -> eventManager.echo("Home Assistant URL", settings.getString(SETTING_URL)))
 				.argumentAction(url -> {

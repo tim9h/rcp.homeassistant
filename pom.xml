@@ -67,7 +67,7 @@
 		<dependency>
 			<groupId>com.github.thibstars</groupId>
 			<artifactId>JHAAPI</artifactId>
-			<version>1.0.18-SNAPSHOT</version>
+			<version>1.0.18</version>
 		</dependency>
 
 	</dependencies>
